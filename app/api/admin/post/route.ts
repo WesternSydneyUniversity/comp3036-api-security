@@ -2,8 +2,9 @@
  * Secured API route for creating blog posts.
  * Only authenticated admins can access this endpoint.
  */
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "../../auth/[...nextauth]/options";
 
 /**
  * Schema for validating blog post data.
@@ -19,9 +20,35 @@ const postSchema = z
   .strict();
 
 export async function POST(req: NextRequest) {
-  // 1. Check for authenticated session using "auth" function
-  // 2. read the body
-  // 3. parse the body
-  // 4. simulates save
-  // 5. Return correct code and message
+  // Check for authenticated session
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    // Validate incoming data
+    const body = await req.json();
+    const validatedData = postSchema.parse(body);
+
+    // Simulate saving to a database
+    const newPost = {
+      title: validatedData.title,
+      content: validatedData.content,
+      author: session.user?.name || "admin",
+    };
+
+    return NextResponse.json(
+      { message: "Post created", post: newPost },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Invalid Data", errors: error.errors },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
